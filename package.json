@@ -17,6 +17,7 @@
     "nanoid": "^4.0.2",
     "nodemon": "^2.0.22",
     "qrcode": "^1.5.3",
+    "randomstring": "^1.2.3",
     "yup": "^1.1.1"
   }
 }
