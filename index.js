@@ -1,14 +1,17 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const { nanoid } = require('nanoid');
+
+const randomstring = require('randomstring');
+
 const qr = require('qrcode');
 const yup = require('yup');
 const fs = require('fs');
 
 const app = express();
+app.use(express.json());
 
-// Connect to Mongoose
-mongoose.connect('mongodb://localhost:27017/test', { useNewUrlParser: true });
+// Connect to our database using mongoose
+mongoose.connect('mongodb://localhost:27017/donwilly', { useNewUrlParser: true });
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 db.once('open', function() {
@@ -17,63 +20,46 @@ db.once('open', function() {
 
 
 // schema for a sample collection
-const SampleSchema = new mongoose.Schema({
+const DataSchema = new mongoose.Schema({
     firstName: String,
     lastName: String,
-    phoneNumber: integer,
+    phoneNumber: Number,
     email: String,
     message: String
   });
   
-  // model for the sample collection
-  const SampleModel = mongoose.model('Sample', SampleSchema);
-
-// schema for validating user data
-const userSchema = yup.object().shape({
-    firstName: yup.string().required(),
-    lastName: yup.string().required(),
-    phoneNumber: yup.number().positive().integer().max(11).required(),
-    email: yup.string().email(new RegExp('/\.com$/')).required(),
-    message: yup.string().required()
-  });
-
-
-// Sample user data to validate
-const user = {
-    firstName: 'John',
-    lastName: 'Williams',
-    phoneNumber: 08031356723,
-    email: 'john@example.com',
-    message: 'Top Universe is awesome!',
-  };
+  // Define a model for the data to be saved
+  const DataModel = mongoose.model('links', DataSchema);
   
-  // Validate the user data using the schema
-  userSchema.validate(user)
-    .then(validUser => console.log(validUser))
-    .catch(err => console.log(err));
+  
 
+    // schema for validating user data
+    const RequestSchema = yup.object().shape({
+        firstName: yup.string().required(),
+        lastName: yup.string().required(),
+        phoneNumber: yup.number().required(),
+        email: yup.string().matches(/@.*\.com$/, {message: 'Must be a valid .com email address.'}).required(),
+        message: yup.string().required()
+      });
 
-// Define a schema for the data to be saved
-const DataSchema = new mongoose.Schema({
-  field1: String,
-  field2: String,
-  field3: integer,
-  field4: String,
-  field5: String
-});
-
-// Define a model for the data to be saved
-const DataModel = mongoose.model('Data', DataSchema);
 
 // Define a route to handle post requests
 app.post('/users', async (req, res) => {
     try {
-      // Save the data to the database
+		// TODO:
+		// data validation
+
+		const isValid = await RequestSchema.validate(req.body)
+		if(!isValid) {
+		  throw new Error(RequestSchema.validate.error);
+		}
+		
+	  // Save the data to the database
       const data = new DataModel(req.body);
       await data.save();
   
       // Generate a unique ID and QR code
-      const id = nanoid(7);
+      const id = randomstring.generate(7);
       const qrDataUrl = await qr.toDataURL('http://bus.me/' + id);
   
       // Return a JSON response with the link containing the unique ID
@@ -84,7 +70,7 @@ app.post('/users', async (req, res) => {
       res.json(response);
     } catch (err) {
       console.error(err);
-      res.status(500).json({ error: 'Internal server error.' });
+      res.status(500).json({ error: err.message });
     }
   });
 
